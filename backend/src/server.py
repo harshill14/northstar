@@ -1,8 +1,10 @@
 import asyncio
+import base64
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.agent.context import SharedContext
@@ -31,6 +33,10 @@ class SpeechRequest(BaseModel):
 
 class SpeechResponse(BaseModel):
     response: str
+
+
+class FrameRequest(BaseModel):
+    frame: str  # base64-encoded JPEG
 
 
 async def process_observer_window(frames: list[tuple[str, bytes]]) -> None:
@@ -68,6 +74,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Alzheimer's Caregiver Assistant", lifespan=lifespan)
 
+# Allow all origins so the Expo app (running via tunnel or local) can reach us
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.websocket("/video/stream")
 async def video_stream(websocket: WebSocket):
@@ -79,6 +94,19 @@ async def video_stream(websocket: WebSocket):
             frame_buffer.add_frame(data)
     except WebSocketDisconnect:
         logger.info("Video stream disconnected")
+
+
+@app.post("/frame")
+async def upload_frame(request: FrameRequest):
+    """HTTP fallback for sending camera frames when WebSocket is unavailable.
+    Accepts base64-encoded JPEG and feeds it into the frame buffer."""
+    try:
+        jpeg_bytes = base64.b64decode(request.frame)
+        frame_buffer.add_frame(jpeg_bytes)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Frame upload failed: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 @app.post("/speech", response_model=SpeechResponse)

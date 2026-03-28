@@ -242,7 +242,9 @@ export default function App() {
           <View style={styles.streamPill}>
             <View style={[styles.dot, { backgroundColor: streamConnected ? '#5ABF72' : '#D95A5A' }]} />
             <Text style={styles.streamText}>
-              {streamConnected ? (streaming.isSimulated ? 'Local' : 'Live') : 'Off'}
+              {streamConnected
+                ? (streaming.isSimulated ? 'Local' : (streaming.useHttpFrames ? 'HTTP' : 'Live'))
+                : 'Off'}
             </Text>
           </View>
 

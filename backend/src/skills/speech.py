@@ -6,21 +6,17 @@ from __future__ import annotations
 
 import base64
 import logging
-import os
 
 from langchain_core.tools import tool
 
-logger = logging.getLogger(__name__)
+from src.config import settings
 
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "openai")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+logger = logging.getLogger(__name__)
 
 
 def _tts_openai(text: str) -> bytes:
     from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=settings.openai_api_key)
     response = client.audio.speech.create(
         model="tts-1",
         voice="nova",
@@ -33,8 +29,8 @@ def _tts_openai(text: str) -> bytes:
 def _tts_elevenlabs(text: str) -> bytes:
     import httpx
     response = httpx.post(
-        f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}",
-        headers={"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"},
+        f"https://api.elevenlabs.io/v1/text-to-speech/{settings.elevenlabs_voice_id}",
+        headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"},
         json={
             "text": text,
             "model_id": "eleven_monolingual_v1",
@@ -56,9 +52,9 @@ def speech_tool(text: str) -> str:
     audio_b64 = ""
 
     try:
-        if TTS_PROVIDER == "elevenlabs" and ELEVENLABS_API_KEY:
+        if settings.tts_provider == "elevenlabs" and settings.elevenlabs_api_key:
             audio_bytes = _tts_elevenlabs(text)
-        elif OPENAI_API_KEY:
+        elif settings.openai_api_key:
             audio_bytes = _tts_openai(text)
         else:
             logger.warning("No TTS API key configured — returning text only")
