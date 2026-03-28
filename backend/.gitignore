@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/agent_log.jsonl
+data/state.db
+server/data/
+.DS_Store
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+credentials.json
