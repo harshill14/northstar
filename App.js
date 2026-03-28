@@ -93,13 +93,18 @@ export default function App() {
   // Connect streaming service on mount
   useEffect(() => {
     streaming.onStatusChange = (connected) => setStreamConnected(connected);
-    streaming.onResponse = ({ agent, text, priority }) => {
+    streaming.onResponse = ({ text, audio }) => {
       // When server sends a response, display and speak it
       setResponse(text);
       setMode('responding');
+      // TODO: if audio (base64 mp3) is provided, play it directly
+      // For now, use local TTS as fallback
       speak(text);
+      setTimeout(() => setMode('idle'), 8000);
     };
-    streaming.onAlert = ({ alertType, message, escalate }) => {
+    streaming.onAlert = ({ message, escalate }) => {
+      setResponse(message);
+      speak(message);
       if (escalate) {
         setEscalation({ reason: message });
       }
@@ -144,19 +149,31 @@ export default function App() {
     speak("I'm listening. How can I help?");
   };
 
-  const handleQuery = (query) => {
+  const handleQuery = async (query) => {
     setMode('responding');
-    const text = getResponse(query);
-    setResponse(text);
-    speak(text);
 
-    // Send query over WebSocket to agent server
-    streaming.sendQuery(query);
+    // If connected to real server, send query to /speech endpoint
+    if (!streaming.isSimulated) {
+      setResponse('Thinking...');
+      const result = await streaming.sendQuery(query);
+      // Response is handled by streaming.onResponse callback
+      if (!result) {
+        // Server failed, fall back to local response
+        const text = getResponse(query);
+        setResponse(text);
+        speak(text);
+      }
+    } else {
+      // Local simulation mode
+      const text = getResponse(query);
+      setResponse(text);
+      speak(text);
+    }
 
     // Medication & safety queries ALWAYS escalate to caregiver
     if (ESCALATION_QUERIES.includes(query)) {
       setTimeout(() => {
-        setEscalation({ reason: text });
+        setEscalation({ reason: getResponse(query) });
       }, 2000);
     } else {
       setTimeout(() => setMode('idle'), 8000);
