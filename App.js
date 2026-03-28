@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Demo responses - simulating the multi-agent pipeline
 const RESPONSES = {
@@ -12,6 +12,9 @@ const RESPONSES = {
   stove: '⚠️ I\'m checking the stove. Alerting your caregiver to confirm everything is safe.',
   default: 'I\'m here to help. Ask me to find something or check if something is safe.',
 };
+
+// Queries that trigger caregiver escalation (human-in-the-loop)
+const ESCALATION_QUERIES = ['medicine', 'stove'];
 
 const DEMO_QUERIES = [
   { label: '👓 Find Glasses', query: 'glasses' },
@@ -26,9 +29,52 @@ function getResponse(query) {
   return RESPONSES[query] || RESPONSES.default;
 }
 
+// ─── Caregiver Escalation Overlay ────────────────────────────────
+function CaregiverOverlay({ reason, onCancel }) {
+  const [connected, setConnected] = useState(false);
+  const [dots, setDots] = useState('');
+
+  useEffect(() => {
+    const dotTimer = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+    const connectTimer = setTimeout(() => setConnected(true), 3000);
+    return () => { clearInterval(dotTimer); clearTimeout(connectTimer); };
+  }, []);
+
+  return (
+    <View style={styles.overlay}>
+      <View style={styles.overlayCard}>
+        <Text style={styles.overlayIcon}>{connected ? '📞' : '📲'}</Text>
+
+        <Text style={styles.overlayTitle}>
+          {connected ? 'Connected to Dr. Sarah Chen' : `Connecting to Caregiver${dots}`}
+        </Text>
+
+        {reason !== '' && (
+          <View style={styles.reasonBox}>
+            <Text style={styles.reasonLabel}>Concern Detected</Text>
+            <Text style={styles.reasonText}>{reason}</Text>
+          </View>
+        )}
+
+        <Text style={styles.overlayStatus}>
+          {connected ? '✅ Caregiver is reviewing' : '⏳ Please wait...'}
+        </Text>
+
+        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ─── Main App ────────────────────────────────────────────────────
 export default function App() {
   const [mode, setMode] = useState('idle');
   const [response, setResponse] = useState('');
+  const [escalation, setEscalation] = useState(null); // null or { reason: string }
 
   const handleHelp = () => {
     setMode('listening');
@@ -38,12 +84,32 @@ export default function App() {
   const handleQuery = (query) => {
     setMode('responding');
     setResponse(getResponse(query));
-    setTimeout(() => setMode('idle'), 8000);
+
+    // Medication & safety queries ALWAYS escalate to caregiver
+    if (ESCALATION_QUERIES.includes(query)) {
+      setTimeout(() => {
+        setEscalation({ reason: getResponse(query) });
+      }, 2000);
+    } else {
+      setTimeout(() => setMode('idle'), 8000);
+    }
   };
 
   const handleStop = () => {
     setMode('idle');
     setResponse('');
+    setEscalation(null);
+  };
+
+  const handleCancelEscalation = () => {
+    setEscalation(null);
+    setMode('idle');
+    setResponse('Caregiver alert cancelled. I\'m still here if you need anything.');
+    setTimeout(() => { setResponse(''); setMode('idle'); }, 4000);
+  };
+
+  const handleManualEscalation = () => {
+    setEscalation({ reason: 'Manual caregiver request' });
   };
 
   const buttonColor =
@@ -62,12 +128,16 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Mode indicator */}
+      {/* Top bar: mode indicator + caregiver button */}
       <View style={styles.topBar}>
         <View style={[styles.modePill, { borderColor: buttonColor }]}>
           <View style={[styles.dot, { backgroundColor: buttonColor }]} />
           <Text style={styles.modeText}>{modeLabel}</Text>
         </View>
+
+        <TouchableOpacity style={styles.caregiverBtn} onPress={handleManualEscalation}>
+          <Text style={styles.caregiverBtnText}>👩‍⚕️</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Response card */}
@@ -81,7 +151,6 @@ export default function App() {
 
       {/* Bottom area */}
       <View style={styles.bottom}>
-        {/* Demo query buttons */}
         {mode === 'listening' && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.queryScroll}>
             {DEMO_QUERIES.map((item) => (
@@ -96,7 +165,6 @@ export default function App() {
           </ScrollView>
         )}
 
-        {/* Big help button */}
         <TouchableOpacity
           style={[styles.helpButton, { backgroundColor: buttonColor }]}
           onPress={mode === 'idle' ? handleHelp : undefined}
@@ -108,13 +176,20 @@ export default function App() {
           <Text style={styles.helpLabel}>{buttonLabel}</Text>
         </TouchableOpacity>
 
-        {/* Stop button */}
         {mode !== 'idle' && (
           <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
             <Text style={styles.stopText}>Stop</Text>
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Caregiver Escalation Overlay */}
+      {escalation && (
+        <CaregiverOverlay
+          reason={escalation.reason}
+          onCancel={handleCancelEscalation}
+        />
+      )}
     </View>
   );
 }
@@ -127,7 +202,9 @@ const styles = StyleSheet.create({
   topBar: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   modePill: {
     flexDirection: 'row',
@@ -147,6 +224,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  caregiverBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 10,
+    borderRadius: 20,
+  },
+  caregiverBtnText: {
+    fontSize: 22,
   },
   responseContainer: {
     flex: 1,
@@ -218,5 +303,70 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // ─── Caregiver Overlay ───
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayCard: {
+    backgroundColor: '#262630',
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#E6662A',
+    padding: 32,
+    width: '85%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  overlayIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  overlayTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  reasonBox: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  reasonLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  reasonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  overlayStatus: {
+    color: '#fff',
+    fontSize: 18,
+    marginBottom: 24,
+  },
+  cancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
