@@ -24,7 +24,7 @@
 
 // ─── Configuration ───────────────────────────────────────────────
 // Set this to your backend server URL, e.g. 'http://192.168.1.100:8000'
-const SERVER_URL = null;
+const SERVER_URL = 'http://10.104.3.76:8000';
 
 const WS_PATH = '/video/stream';
 const SPEECH_PATH = '/speech';
