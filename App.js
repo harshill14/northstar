@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Speech from 'expo-speech';
 
 // Demo responses - simulating the multi-agent pipeline
 const RESPONSES = {
@@ -86,19 +87,36 @@ export default function App() {
     }
   }, [cameraPermission]);
 
+  // Speak text in a calm, slow voice for Alzheimer's patients
+  const speak = (text) => {
+    Speech.stop();
+    // Strip emoji before speaking
+    const clean = text.replace(/[^\x20-\x7E.,!?'";\s]/g, '').trim();
+    if (clean) {
+      Speech.speak(clean, {
+        language: 'en-US',
+        rate: 0.75,   // Slower for clarity
+        pitch: 0.95,  // Slightly lower for calmness
+      });
+    }
+  };
+
   const handleHelp = () => {
     setMode('listening');
     setResponse("I'm listening. Tap a question below.");
+    speak("I'm listening. How can I help?");
   };
 
   const handleQuery = (query) => {
     setMode('responding');
-    setResponse(getResponse(query));
+    const text = getResponse(query);
+    setResponse(text);
+    speak(text);
 
     // Medication & safety queries ALWAYS escalate to caregiver
     if (ESCALATION_QUERIES.includes(query)) {
       setTimeout(() => {
-        setEscalation({ reason: getResponse(query) });
+        setEscalation({ reason: text });
       }, 2000);
     } else {
       setTimeout(() => setMode('idle'), 8000);
@@ -106,6 +124,7 @@ export default function App() {
   };
 
   const handleStop = () => {
+    Speech.stop();
     setMode('idle');
     setResponse('');
     setEscalation(null);
@@ -114,7 +133,9 @@ export default function App() {
   const handleCancelEscalation = () => {
     setEscalation(null);
     setMode('idle');
-    setResponse('Caregiver alert cancelled. I\'m still here if you need anything.');
+    const msg = 'Caregiver alert cancelled. I\'m still here if you need anything.';
+    setResponse(msg);
+    speak(msg);
     setTimeout(() => { setResponse(''); setMode('idle'); }, 4000);
   };
 

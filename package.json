@@ -11,6 +11,7 @@
     "@expo/metro-runtime": "^55.0.8-canary-20260328-bdc6273",
     "expo": "54.0.33",
     "expo-camera": "^55.0.12-canary-20260328-bdc6273",
+    "expo-speech": "^55.0.10-canary-20260328-bdc6273",
     "expo-status-bar": "2.2.3",
     "react": "19.0.0",
     "react-dom": "^19.2.4",
