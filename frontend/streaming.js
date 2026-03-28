@@ -15,7 +15,7 @@
 
 // ─── Configuration ───────────────────────────────────────────────
 // Set this to your backend server URL
-const SERVER_URL = 'http://10.104.3.76:8000';
+const SERVER_URL = 'http://172.20.10.6:8000';
 
 const WS_PATH = '/video/stream';
 const FRAME_PATH = '/frame';
