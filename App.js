@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 // Demo responses - simulating the multi-agent pipeline
 const RESPONSES = {
@@ -75,6 +76,15 @@ export default function App() {
   const [mode, setMode] = useState('idle');
   const [response, setResponse] = useState('');
   const [escalation, setEscalation] = useState(null); // null or { reason: string }
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const cameraRef = useRef(null);
+
+  // Request camera permission on mount
+  useEffect(() => {
+    if (!cameraPermission?.granted) {
+      requestCameraPermission();
+    }
+  }, [cameraPermission]);
 
   const handleHelp = () => {
     setMode('listening');
@@ -127,6 +137,20 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+
+      {/* Live Camera Background */}
+      {Platform.OS !== 'web' && cameraPermission?.granted ? (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#1a1a2e' }]} />
+      )}
+
+      {/* Semi-transparent overlay for readability */}
+      <View style={styles.cameraOverlay} />
 
       {/* Top bar: mode indicator + caregiver button */}
       <View style={styles.topBar}>
@@ -197,7 +221,11 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000',
+  },
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   topBar: {
     paddingTop: 60,

@@ -8,8 +8,22 @@
     "sdkVersion": "54.0.0",
     "platforms": ["ios", "android", "web"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "NorthStar needs camera access to help you find objects and monitor your surroundings.",
+        "NSMicrophoneUsageDescription": "NorthStar needs microphone access so you can ask for help using your voice."
+      }
     },
-    "android": {}
+    "android": {
+      "permissions": ["CAMERA", "RECORD_AUDIO"]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NorthStar needs camera access to help you find objects."
+        }
+      ]
+    ]
   }
 }
