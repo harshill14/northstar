@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform } from '
 import { useState, useEffect, useRef } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
+import streaming from './streaming';
 
 // Demo responses - simulating the multi-agent pipeline
 const RESPONSES = {
@@ -78,6 +79,8 @@ export default function App() {
   const [response, setResponse] = useState('');
   const [escalation, setEscalation] = useState(null); // null or { reason: string }
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [streamConnected, setStreamConnected] = useState(false);
+  const [frameCount, setFrameCount] = useState(0);
   const cameraRef = useRef(null);
 
   // Request camera permission on mount
@@ -86,6 +89,40 @@ export default function App() {
       requestCameraPermission();
     }
   }, [cameraPermission]);
+
+  // Connect streaming service on mount
+  useEffect(() => {
+    streaming.onStatusChange = (connected) => setStreamConnected(connected);
+    streaming.onResponse = ({ agent, text, priority }) => {
+      // When server sends a response, display and speak it
+      setResponse(text);
+      setMode('responding');
+      speak(text);
+    };
+    streaming.onAlert = ({ alertType, message, escalate }) => {
+      if (escalate) {
+        setEscalation({ reason: message });
+      }
+    };
+    streaming.connect();
+
+    return () => streaming.disconnect();
+  }, []);
+
+  // Start/stop frame streaming when camera is available
+  useEffect(() => {
+    if (cameraPermission?.granted && streamConnected && Platform.OS !== 'web') {
+      streaming.startFrameStreaming(cameraRef);
+      // Track frames for UI
+      const counter = setInterval(() => {
+        setFrameCount(prev => prev + 1);
+      }, 1000);
+      return () => {
+        streaming.stopFrameStreaming();
+        clearInterval(counter);
+      };
+    }
+  }, [cameraPermission?.granted, streamConnected]);
 
   // Speak text in a calm, slow voice for Alzheimer's patients
   const speak = (text) => {
@@ -112,6 +149,9 @@ export default function App() {
     const text = getResponse(query);
     setResponse(text);
     speak(text);
+
+    // Send query over WebSocket to agent server
+    streaming.sendQuery(query);
 
     // Medication & safety queries ALWAYS escalate to caregiver
     if (ESCALATION_QUERIES.includes(query)) {
@@ -180,9 +220,19 @@ export default function App() {
           <Text style={styles.modeText}>{modeLabel}</Text>
         </View>
 
-        <TouchableOpacity style={styles.caregiverBtn} onPress={handleManualEscalation}>
-          <Text style={styles.caregiverBtnText}>👩‍⚕️</Text>
-        </TouchableOpacity>
+        <View style={styles.topRight}>
+          {/* Streaming status */}
+          <View style={styles.streamPill}>
+            <View style={[styles.dot, { backgroundColor: streamConnected ? '#5ABF72' : '#D95A5A' }]} />
+            <Text style={styles.streamText}>
+              {streamConnected ? (streaming.isSimulated ? 'Local' : 'Live') : 'Off'}
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.caregiverBtn} onPress={handleManualEscalation}>
+            <Text style={styles.caregiverBtnText}>👩‍⚕️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Response card */}
@@ -272,6 +322,24 @@ const styles = StyleSheet.create({
   modeText: {
     color: '#fff',
     fontSize: 15,
+    fontWeight: '600',
+  },
+  topRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streamPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  streamText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
     fontWeight: '600',
   },
   caregiverBtn: {
