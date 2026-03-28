@@ -7,7 +7,7 @@ import {
   Text,
   Platform,
 } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrchestrator } from '../services/AgentOrchestrator';
 import { AppMode } from '../models/AgentModels';
@@ -20,15 +20,14 @@ const { width, height } = Dimensions.get('window');
 
 export default function MainView() {
   const { state, activateListening, stopSession, escalateToCaregiver } = useOrchestrator();
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const modeConfig = {
     [AppMode.IDLE]: { label: 'Ready', color: '#5A8ED6' },
@@ -43,17 +42,17 @@ export default function MainView() {
   return (
     <View style={styles.container}>
       {/* Camera Background */}
-      {hasPermission ? (
-        <Camera
+      {permission?.granted ? (
+        <CameraView
           ref={cameraRef}
           style={StyleSheet.absoluteFillObject}
-          type={Camera.Constants?.Type?.back ?? 'back'}
+          facing="back"
         />
       ) : (
         <View style={[StyleSheet.absoluteFillObject, styles.cameraPlaceholder]}>
           <Ionicons name="camera-outline" size={64} color="#ffffff44" />
           <Text style={styles.placeholderText}>
-            {hasPermission === null ? 'Requesting camera...' : 'Camera permission needed'}
+            {permission === null ? 'Requesting camera...' : 'Camera permission needed'}
           </Text>
         </View>
       )}
