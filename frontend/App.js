@@ -369,6 +369,23 @@ export default function App() {
     setEscalation(null);
   };
 
+  const handleEmergency = async () => {
+    const reason = 'Manual emergency button pressed by user';
+    setEscalation({ reason });
+    speak('Contacting your caregiver now. Help is on the way.');
+
+    // If connected to backend, trigger the agent which can place a real Twilio call
+    if (!streaming.isSimulated) {
+      try {
+        await streaming.sendQuery(
+          'URGENT: The user pressed the emergency button. Please call the emergency contact immediately.'
+        );
+      } catch (e) {
+        console.log('[Emergency] Failed to notify backend:', e);
+      }
+    }
+  };
+
   const handleCancelEscalation = () => {
     setEscalation(null);
     setMode('idle');
@@ -422,7 +439,7 @@ export default function App() {
               {streamConnected ? (streaming.isSimulated ? 'Local' : 'Live') : 'Off'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.emergencyBtn} onPress={() => setEscalation({ reason: 'Manual request' })}>
+          <TouchableOpacity style={styles.emergencyBtn} onPress={handleEmergency}>
             <Text style={styles.emergencyBtnText}>🆘</Text>
           </TouchableOpacity>
         </View>
