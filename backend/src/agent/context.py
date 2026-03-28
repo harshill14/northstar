@@ -30,17 +30,25 @@ class SharedContext:
         async with self._lock:
             self.add_observation(observation)
 
-    def get_summary(self) -> str:
+    def get_summary(self, max_observations: int = 5) -> str:
+        """Build a concise context summary. Kept short to avoid exceeding token limits."""
         lines = []
         if self._last_seen:
             lines.append("## Last Seen Items")
-            for name, info in self._last_seen.items():
+            # Only include last 20 items to keep it short
+            items = list(self._last_seen.items())[-20:]
+            for name, info in items:
                 lines.append(f"- {name}: {info['location']} (at {info['timestamp']})")
         if self._observations:
             lines.append("\n## Recent Observations")
-            for obs in list(self._observations)[-10:]:
-                for action in obs.actions:
+            for obs in list(self._observations)[-max_observations:]:
+                # Only include first 3 actions and concerns per observation
+                for action in obs.actions[:3]:
                     lines.append(f"- [{obs.timestamp}] {action}")
-                for concern in obs.safety_concerns:
+                for concern in obs.safety_concerns[:3]:
                     lines.append(f"- [{obs.timestamp}] SAFETY: {concern}")
-        return "\n".join(lines) if lines else "No observations yet."
+        summary = "\n".join(lines) if lines else "No observations yet."
+        # Hard cap at 2000 characters to stay within token limits
+        if len(summary) > 2000:
+            summary = summary[:2000] + "\n... (truncated)"
+        return summary

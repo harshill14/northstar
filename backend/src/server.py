@@ -111,8 +111,12 @@ async def upload_frame(request: FrameRequest):
 
 @app.post("/speech", response_model=SpeechResponse)
 async def speech(request: SpeechRequest):
-    response_text = await main_agent.handle_speech(request.text)
-    return SpeechResponse(response=response_text)
+    try:
+        response_text = await main_agent.handle_speech(request.text)
+        return SpeechResponse(response=response_text)
+    except Exception as e:
+        logger.error(f"Speech handler failed: {e}")
+        return SpeechResponse(response="I'm sorry, I had trouble processing that. Please try again.")
 
 
 @app.get("/health")

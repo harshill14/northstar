@@ -31,6 +31,7 @@ class MainAgent:
             model="claude-sonnet-4-20250514",
             temperature=0,
             anthropic_api_key=settings.anthropic_api_key,
+            max_tokens=4096,
         )
 
         self._tools = [
