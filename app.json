@@ -6,31 +6,13 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#4A7FBF"
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.northstar.app",
-      "infoPlist": {
-        "NSCameraUsageDescription": "NorthStar needs camera access to help you find objects and monitor your surroundings.",
-        "NSMicrophoneUsageDescription": "NorthStar needs microphone access so you can ask for help using your voice.",
-        "NSSpeechRecognitionUsageDescription": "NorthStar uses speech recognition to understand your requests."
-      }
+      "bundleIdentifier": "com.northstar.app"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#4A7FBF"
-      },
-      "package": "com.northstar.app",
-      "permissions": ["CAMERA", "RECORD_AUDIO"]
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "NorthStar needs camera access to help you find objects."
-        }
-      ]
-    ]
+      "package": "com.northstar.app"
+    }
   }
 }
