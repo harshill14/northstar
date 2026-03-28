@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
     weather_api_key: str = ""
     default_location: str = "New York,US"
-    frame_sample_rate: int = 2
-    observer_window_seconds: int = 5
+    frame_sample_rate: int = 1
+    observer_window_seconds: int = 15
     user_name: str = "friend"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

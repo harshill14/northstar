@@ -20,12 +20,12 @@ const RESPONSES = {
 const ESCALATION_QUERIES = ['medicine', 'stove'];
 
 const DEMO_QUERIES = [
-  { label: '👓 Find Glasses', query: 'glasses' },
-  { label: '🔑 Find Keys', query: 'keys' },
-  { label: '👤 Who Is This?', query: 'who' },
-  { label: '💊 Medication', query: 'medicine' },
-  { label: '🔥 Stove Safe?', query: 'stove' },
-  { label: '📱 Find Phone', query: 'phone' },
+  { label: '👓 Find Glasses', query: 'glasses', speech: 'Where are my glasses? Have you seen them recently?' },
+  { label: '🔑 Find Keys', query: 'keys', speech: 'Where are my keys? I can\'t find them.' },
+  { label: '👤 Who Is This?', query: 'who', speech: 'Who is in front of me right now? Can you describe them?' },
+  { label: '💊 Medication', query: 'medicine', speech: 'Did I take my medication today? What pills do I need?' },
+  { label: '🔥 Stove Safe?', query: 'stove', speech: 'Is the stove on? Is the kitchen safe?' },
+  { label: '📱 Find Phone', query: 'phone', speech: 'Where is my phone? Have you seen it?' },
 ];
 
 function getResponse(query) {
@@ -149,20 +149,22 @@ export default function App() {
     speak("I'm listening. How can I help?");
   };
 
-  const handleQuery = async (query) => {
+  const handleQuery = async (query, speechText) => {
     setMode('responding');
 
-    // If connected to real server, send query to /speech endpoint
+    // If connected to real server, send natural language to /speech endpoint
     if (!streaming.isSimulated) {
       setResponse('Thinking...');
-      const result = await streaming.sendQuery(query);
-      // Response is handled by streaming.onResponse callback
+      speak('Let me check on that for you.');
+      const textToSend = speechText || query;
+      const result = await streaming.sendQuery(textToSend);
       if (!result) {
         // Server failed, fall back to local response
         const text = getResponse(query);
         setResponse(text);
         speak(text);
       }
+      // Response is handled by streaming.onResponse callback (sets response + speaks)
     } else {
       // Local simulation mode
       const text = getResponse(query);
@@ -271,7 +273,7 @@ export default function App() {
               <TouchableOpacity
                 key={item.label}
                 style={styles.queryBtn}
-                onPress={() => handleQuery(item.query)}
+                onPress={() => handleQuery(item.query, item.speech)}
               >
                 <Text style={styles.queryText}>{item.label}</Text>
               </TouchableOpacity>

@@ -22,7 +22,7 @@ const FRAME_PATH = '/frame';
 const SPEECH_PATH = '/speech';
 const HEALTH_PATH = '/health';
 const RECONNECT_DELAY = 5000;
-const FRAME_INTERVAL = 500; // 2 fps
+const FRAME_INTERVAL = 5000; // 1 frame every 5 seconds (matches backend observer window)
 
 // ─── Helper: base64 string → binary ArrayBuffer ─────────────────
 function base64ToArrayBuffer(base64) {
