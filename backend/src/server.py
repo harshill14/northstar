@@ -119,6 +119,49 @@ async def speech(request: SpeechRequest):
         return SpeechResponse(response="I'm sorry, I had trouble processing that. Please try again.")
 
 
+class TranscribeRequest(BaseModel):
+    audio: str  # base64-encoded audio (m4a/wav)
+
+
+@app.post("/transcribe")
+async def transcribe(request: TranscribeRequest):
+    """Transcribe audio using OpenAI Whisper, then run through agent."""
+    try:
+        import tempfile
+        audio_bytes = base64.b64decode(request.audio)
+
+        # Write to temp file (Whisper needs a file)
+        with tempfile.NamedTemporaryFile(suffix=".m4a", delete=False) as f:
+            f.write(audio_bytes)
+            temp_path = f.name
+
+        # Transcribe with OpenAI Whisper
+        from openai import OpenAI
+        client = OpenAI(api_key=settings.openai_api_key)
+        with open(temp_path, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+            )
+
+        import os
+        os.unlink(temp_path)
+
+        text = transcript.text.strip()
+        logger.info(f"Transcribed: {text}")
+
+        if not text:
+            return {"transcription": "", "response": "I didn't catch that. Could you try again?"}
+
+        # Run through agent
+        response_text = await main_agent.handle_speech(text)
+        return {"transcription": text, "response": response_text}
+
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}")
+        return {"transcription": "", "response": "I'm sorry, I had trouble hearing you. Please try again."}
+
+
 @app.get("/health")
 async def health():
     return {

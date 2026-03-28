@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Platform } from '
 import { useState, useEffect, useRef } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import streaming from './streaming';
 
 // Demo responses - simulating the multi-agent pipeline
@@ -77,10 +79,11 @@ function CaregiverOverlay({ reason, onCancel }) {
 export default function App() {
   const [mode, setMode] = useState('idle');
   const [response, setResponse] = useState('');
-  const [escalation, setEscalation] = useState(null); // null or { reason: string }
+  const [escalation, setEscalation] = useState(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [streamConnected, setStreamConnected] = useState(false);
   const [frameCount, setFrameCount] = useState(0);
+  const [recording, setRecording] = useState(null);
   const cameraRef = useRef(null);
 
   // Request camera permission on mount
@@ -143,10 +146,98 @@ export default function App() {
     }
   };
 
+  // ─── Voice Recording ──────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        speak("I need microphone permission to listen to you.");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(newRecording);
+      setMode('listening');
+      setResponse("I'm listening... Tap again when you're done.");
+    } catch (e) {
+      console.log('Failed to start recording:', e);
+      // Fall back to demo query mode
+      setMode('listening');
+      setResponse("I'm listening. Tap a question below.");
+      speak("I'm listening. How can I help?");
+    }
+  };
+
+  const stopRecordingAndSend = async () => {
+    if (!recording) return;
+
+    setMode('responding');
+    setResponse('Let me think about that...');
+    speak('Let me think about that.');
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+      if (!streaming.isSimulated && uri) {
+        // Read audio file as base64
+        const base64Audio = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        // Send to backend /transcribe endpoint
+        const res = await fetch(streaming.serverUrl + '/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64Audio }),
+        });
+
+        const data = await res.json();
+        console.log('[Voice] Transcribed:', data.transcription);
+        console.log('[Voice] Response:', data.response);
+
+        if (data.response) {
+          setResponse(data.response);
+          speak(data.response);
+          setTimeout(() => setMode('idle'), 10000);
+        } else {
+          setResponse("I didn't catch that. Please try again.");
+          speak("I didn't catch that. Please try again.");
+          setTimeout(() => setMode('idle'), 4000);
+        }
+      } else {
+        // No server — just show demo mode
+        setResponse("Voice requires server connection. Use the buttons below.");
+        speak("Voice requires a server connection. Use the buttons below.");
+        setMode('listening');
+      }
+    } catch (e) {
+      console.log('Failed to process recording:', e);
+      setResponse("Something went wrong. Please try again.");
+      speak("Something went wrong. Please try again.");
+      setRecording(null);
+      setTimeout(() => setMode('idle'), 4000);
+    }
+  };
+
   const handleHelp = () => {
-    setMode('listening');
-    setResponse("I'm listening. Tap a question below.");
-    speak("I'm listening. How can I help?");
+    if (mode === 'listening' && recording) {
+      // Already recording — stop and send
+      stopRecordingAndSend();
+    } else {
+      // Start recording
+      startRecording();
+    }
   };
 
   const handleQuery = async (query, speechText) => {
@@ -182,8 +273,14 @@ export default function App() {
     }
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     Speech.stop();
+    if (recording) {
+      try {
+        await recording.stopAndUnloadAsync();
+      } catch {}
+      setRecording(null);
+    }
     setMode('idle');
     setResponse('');
     setEscalation(null);
@@ -204,15 +301,19 @@ export default function App() {
 
   const buttonColor =
     mode === 'idle' ? '#5A8ED6' :
-    mode === 'listening' ? '#5ABF72' : '#E6A641';
+    mode === 'listening' ? (recording ? '#E85A5A' : '#5ABF72') : '#E6A641';
 
   const buttonLabel =
     mode === 'idle' ? 'Help Me' :
-    mode === 'listening' ? 'Listening...' : 'Thinking...';
+    mode === 'listening' ? (recording ? 'Tap to Send' : 'Listening...') : 'Thinking...';
+
+  const buttonIcon =
+    mode === 'idle' ? '🤚' :
+    mode === 'listening' ? (recording ? '⏹️' : '🎙️') : '💭';
 
   const modeLabel =
     mode === 'idle' ? 'Ready' :
-    mode === 'listening' ? 'Listening' : 'Assisting';
+    mode === 'listening' ? (recording ? 'Recording' : 'Listening') : 'Assisting';
 
   return (
     <View style={styles.container}>
@@ -267,7 +368,8 @@ export default function App() {
 
       {/* Bottom area */}
       <View style={styles.bottom}>
-        {mode === 'listening' && (
+        {/* Demo query buttons (shown when listening but not recording) */}
+        {mode === 'listening' && !recording && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.queryScroll}>
             {DEMO_QUERIES.map((item) => (
               <TouchableOpacity
@@ -283,11 +385,11 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.helpButton, { backgroundColor: buttonColor }]}
-          onPress={mode === 'idle' ? handleHelp : undefined}
-          activeOpacity={mode === 'idle' ? 0.7 : 1}
+          onPress={(mode === 'idle' || (mode === 'listening' && recording)) ? handleHelp : undefined}
+          activeOpacity={(mode === 'idle' || recording) ? 0.7 : 1}
         >
           <Text style={styles.helpIcon}>
-            {mode === 'idle' ? '🤚' : mode === 'listening' ? '🎙️' : '💭'}
+            {buttonIcon}
           </Text>
           <Text style={styles.helpLabel}>{buttonLabel}</Text>
         </TouchableOpacity>
