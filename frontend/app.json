@@ -11,7 +11,10 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "NorthStar needs camera access to help you find objects and monitor your surroundings.",
-        "NSMicrophoneUsageDescription": "NorthStar needs microphone access so you can ask for help using your voice."
+        "NSMicrophoneUsageDescription": "NorthStar needs microphone access so you can ask for help using your voice.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {

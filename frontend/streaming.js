@@ -239,9 +239,16 @@ class StreamingService {
   async checkHealth() {
     if (!this.serverUrl) return null;
     try {
-      const res = await fetch(this.serverUrl + HEALTH_PATH, { signal: AbortSignal.timeout(3000) });
-      return await res.json();
-    } catch {
+      console.log('[Streaming] Health check:', this.serverUrl + HEALTH_PATH);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(this.serverUrl + HEALTH_PATH, { signal: controller.signal });
+      clearTimeout(timeout);
+      const data = await res.json();
+      console.log('[Streaming] Health response:', JSON.stringify(data));
+      return data;
+    } catch (e) {
+      console.log('[Streaming] Health check failed:', e.message || e);
       return null;
     }
   }
