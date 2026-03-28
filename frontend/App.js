@@ -4,8 +4,23 @@ import { useState, useEffect, useRef } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
 import streaming from './streaming';
+
+// Helper: read a local file URI as base64
+async function readFileAsBase64(uri) {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // result is "data:audio/...;base64,XXXXX" — strip the prefix
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 // Demo responses - simulating the multi-agent pipeline
 const RESPONSES = {
@@ -191,9 +206,7 @@ export default function App() {
 
       if (!streaming.isSimulated && uri) {
         // Read audio file as base64
-        const base64Audio = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        const base64Audio = await readFileAsBase64(uri);
 
         // Send to backend /transcribe endpoint
         const res = await fetch(streaming.serverUrl + '/transcribe', {
