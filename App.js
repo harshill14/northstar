@@ -6,7 +6,7 @@ export default function App() {
     <View style={styles.container}>
       <Text style={styles.title}>NorthStar</Text>
       <Text style={styles.subtitle}>App is running!</Text>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </View>
   );
 }
@@ -19,12 +19,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 36,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#aaa',
+    color: '#aaaaaa',
     fontSize: 18,
     marginTop: 10,
   },
