@@ -5,6 +5,7 @@ import logging
 import anthropic
 
 from src.agent.prompts import OBSERVER_SYSTEM_PROMPT
+from src.config import settings
 from src.models import Observation
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ _client: anthropic.AsyncAnthropic | None = None
 def get_client() -> anthropic.AsyncAnthropic:
     global _client
     if _client is None:
-        _client = anthropic.AsyncAnthropic()
+        _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     return _client
 
 

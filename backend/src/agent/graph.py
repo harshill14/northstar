@@ -6,6 +6,7 @@ from langgraph.prebuilt import create_react_agent
 
 from src.agent.context import SharedContext
 from src.agent.prompts import AGENT_SYSTEM_PROMPT
+from src.config import settings
 from src.logging.logger import AgentLogger
 from src.skills.answer_question import answer_question, set_shared_context
 from src.skills.calendar_read import calendar_read
@@ -29,6 +30,7 @@ class MainAgent:
         model = ChatAnthropic(
             model="claude-sonnet-4-20250514",
             temperature=0,
+            anthropic_api_key=settings.anthropic_api_key,
         )
 
         self._tools = [
