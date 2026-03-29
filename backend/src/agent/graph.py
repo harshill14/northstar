@@ -8,6 +8,7 @@ from src.agent.context import SharedContext
 from src.agent.prompts import AGENT_SYSTEM_PROMPT
 from src.config import settings
 from src.logging.logger import AgentLogger
+from src import nexla_pipeline
 from src.skills.answer_question import answer_question, set_shared_context
 from src.skills.calendar_read import calendar_read
 from src.skills.calendar_write import calendar_write
@@ -82,6 +83,14 @@ class MainAgent:
             input_text=text,
             tool_calls=tool_calls,
             response=result if isinstance(result, str) else str(result),
+        )
+
+        # Stream agent activity through Nexla data pipeline
+        nexla_pipeline.send_agent_activity(
+            trigger="speech",
+            input_text=text,
+            response=result if isinstance(result, str) else str(result),
+            tool_calls=tool_calls,
         )
 
         return result if isinstance(result, str) else str(result)

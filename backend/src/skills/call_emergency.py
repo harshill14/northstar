@@ -5,6 +5,7 @@ from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
 
 from src.config import settings
+from src import nexla_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -37,4 +38,6 @@ def make_emergency_call(reason: str) -> str:
 @tool
 def call_emergency(reason: str) -> str:
     """Call the emergency contact via phone. Only use this for genuine emergencies such as falls, fires, or medical distress. Provide a clear reason for the call."""
+    # Stream emergency event through Nexla for caregiver dashboard
+    nexla_pipeline.send_emergency_event(reason=reason, contact=settings.emergency_contact_number)
     return make_emergency_call(reason)

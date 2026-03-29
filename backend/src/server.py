@@ -13,6 +13,7 @@ from src.config import settings
 from src.logging.logger import AgentLogger
 from src.observer.buffer import FrameBuffer
 from src.observer.observer import observe_frames
+from src import nexla_pipeline
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,6 +46,9 @@ async def process_observer_window(frames: list[tuple[str, bytes]]) -> None:
         observation = await observe_frames(frames)
         await shared_context.add_observation_async(observation)
         logger.info(f"Observation: {observation.actions}, urgency={observation.urgency}")
+
+        # Stream observation through Nexla data pipeline
+        nexla_pipeline.send_observation(observation.model_dump())
 
         if observation.is_urgent:
             summary = "; ".join(observation.safety_concerns or observation.actions)

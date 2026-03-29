@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     frame_sample_rate: int = 1
     observer_window_seconds: int = 15
     user_name: str = "friend"
+    nexla_service_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
